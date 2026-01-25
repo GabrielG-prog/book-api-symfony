@@ -19,11 +19,38 @@ use JMS\Serializer\SerializerInterface;
 use Symfony\Component\Validator\Validator\ValidatorInterface;
 use Symfony\Contracts\Cache\ItemInterface;
 use Symfony\Contracts\Cache\TagAwareCacheInterface;
+use App\Service\VersioningService;
+use Nelmio\ApiDocBundle\Annotation\Model;
+use Nelmio\ApiDocBundle\Annotation\Security;
+use OpenApi\Annotations as OA;
 
 final class BookController extends AbstractController
 {
     /**
-     * Cette méthode permet de récupérer l'ensemble des livres. 
+     * Cette méthode permet de récupérer l'ensemble des livres.
+     *
+     * @OA\Response(
+     *     response=200,
+     *     description="Retourne la liste des livres",
+     *     @OA\JsonContent(
+     *        type="array",
+     *        @OA\Items(ref=@Model(type=Book   ::class, groups={"getBooks"}))
+     *     )
+     * )
+     * @OA\Parameter(
+     *     name="page",
+     *     in="query",
+     *     description="La page que l'on veut récupérer",
+     *     @OA\Schema(type="int")
+     * )
+     *
+     * @OA\Parameter(
+     *     name="limit",
+     *     in="query",
+     *     description="Le nombre d'éléments que l'on veut récupérer",
+     *     @OA\Schema(type="int")
+     * )
+     * @OA\Tag(name="Books")
      *
      * @param BookRepository $bookRepository
      * @param SerializerInterface $serializer
@@ -57,11 +84,13 @@ final class BookController extends AbstractController
      * @return JsonResponse
      */
     #[Route('/api/books/{id}', name: 'detailBook', methods: ['GET'])]
-    public function getDetailBook(int $id, SerializerInterface $serializer, BookRepository $bookRepository): JsonResponse {
+    public function getDetailBook(int $id, SerializerInterface $serializer, BookRepository $bookRepository, VersioningService $versioningService): JsonResponse {
 
         $book = $bookRepository->find($id);
         if ($book) {
+            $version = $versioningService->getVersion();
             $context = SerializationContext::create()->setGroups(['getBooks']);
+            $context->setVersion($version);
             $jsonBook = $serializer->serialize($book, 'json', $context);
             return new JsonResponse($jsonBook, Response::HTTP_OK, [], true);
         }
